@@ -1,9 +1,8 @@
 # tensor-value-creation
-A multidimensional mathematical model of value creation starting from the bipolar void (0,0), using tensor products.
 
-# tensor-value-creation
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19704117.svg)](https://doi.org/10.5281/zenodo.19704117)
 
-> **双極を内包した無（0,0）を起点とする価値創出の多次元数理モデル**
+> **双極（双曲）を内包した無（0,0）を起点とする価値創出の多次元数理モデル**
 > *A Multidimensional Mathematical Model of Value Creation Starting from the Bipolar Void (0,0)*
 
 ---
@@ -15,6 +14,14 @@ A multidimensional mathematical model of value creation starting from the bipola
 人間が「自分がしたいこと（自己実現）」を通じて「他者を支える（他者貢献）」とき、そこにはいかなるダイナミズムが働き、どのようにして普遍的な価値が宿るのか。本理論では、物理次元・実数次元・虚数次元を統合した多次元存在ベクトル $P$、および個人の内発的熱量（角速度 $\omega$）と行動のテンソル積 $\otimes$ を用いて、価値の生成エネルギー $E$ を数理的メタファーとして定式化します。
 
 この理論が扱う問いは、答えが出るたびに新しい問いを生むフラクタル（自己相似）な構造を持っています。
+
+---
+
+## 📚 双曲の０理論 (Publications)
+
+本リポジトリの基礎となる**「双曲の０理論」**の公式な論文および概念展開は、オープンサイエンスのプラットフォームである Zenodo にて公開されています。引用や詳細な学術的背景については、以下のリンクをご参照ください。
+
+* **Zenodo DOI:** [https://doi.org/10.5281/zenodo.19704117](https://doi.org/10.5281/zenodo.19704117)
 
 ---
 
@@ -35,10 +42,6 @@ $$Y = \frac{1}{X} \quad (\text{or } X \cdot Y = 1)$$
 
 $$P = xX + yY + zZ + rR + iI + jJ$$
 
-* $xX, yY, zZ$: 物理的・現実空間における行動と位置
-* $rR$: 現実的な結果やリソース（Real / Resource）の次元
-* $iI, jJ$: 目に見えない精神性、感情、他者との潜在的な繋がりを示す複素数（虚数）的次元
-
 ### 4. 価値生成エネルギーの方程式 $E$ (Value Energy Equation)
 存在がどのようにして「価値（エネルギー $E$）」を生み出すかの核心となる数式です。
 
@@ -58,15 +61,6 @@ $$E = (xX + yY + zZ) \otimes (\omega_x, \omega_y, \omega_z) + rR + iI + jJ$$
 
 ---
 
-## 🚀 今後の展開と Zenodo 連携
-
-本リポジトリで管理されるテキストや数理モデルのアップデートは、オープンサイエンスのプラットフォームである [Zenodo](https://zenodo.org/) と連携し、学術的なプレプリント（DOI付与）としてアーカイブしていく予定です。
-
-### 検討中のロードマップ
-- [ ] 数理モデルの詳細なテキスト化・論文形式への構造化
-- [ ] 虚数次元（$iI, jJ$）における「感情の共鳴」のさらなる定式化
-- [ ] 視覚的な理解を助けるモデル図（ダイアグラム）の追加
-
 ## 📄 ライセンス (License)
 
-本プロジェクトの概念および文章は、[Creative Commons Attribution 4.0 International (CC-BY 4.0)](https://creativecommons.org/licenses/by/4.0/) のもとで公開されています。原作者のクレジットを明記していただければ、どなたでもこの概念を引用・発展・議論のために使用することができます。
+本プロジェクトの概念および文章は、[Creative Commons Attribution 4.0 International (CC-BY 4.0)](https://creativecommons.org/licenses/by/4.0/) のもとで公開されています。原作者のクレジットを明記し、上記 Zenodo の DOI を引用していただければ、どなたでもこの概念を引用・発展・議論のために使用することができます。
