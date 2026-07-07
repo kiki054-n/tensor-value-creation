@@ -1,23 +1,41 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
+# OSが自動生成する隠しファイル（Mac / Windows）
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# エディタやIDEの設定ファイル（VSCode, IntelliJなど）
 .vscode/
-#Cache folder
-.alcache/
-#Symbols folder
-.alpackages/
-#Snapshots folder
-.snapshots/
-#Testing Output folder
-.output/
-#Extension App-file
-*.app
-#Rapid Application Development File
-rad.json
-#Translation Base-file
-*.g.xlf
-#License-files
-*.bclicense
-*.flf
-#Test results file
-TestResults.xml
+.idea/
+*.suo
+*.swp
+*~
+
+# LaTeX のビルド中間ファイル（数式を含む論文を執筆する際に発生します）
+*.aux
+*.bbl
+*.blg
+*.brf
+*.bcf
+*.dvi
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+
+# 下書きや一時保存用（もしローカルだけで管理したいメモがあれば）
+drafts/
+tmp/
+*.bak
