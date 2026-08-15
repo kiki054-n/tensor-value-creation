@@ -1,3 +1,6 @@
+> **最新: 完全版v2公開** → [TRI-TETRA THEORY COMPLETE v2 - ΣV=0・JIK=-1・137・1836](https://kiki054-n.github.io/ttt-complete-v2/)
+
+
 # tensor-value-creation
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19704117.svg)](https://doi.org/10.5281/zenodo.19704117)
