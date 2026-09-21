@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フレミング 動的空間座標モデル - 第5世代（4×4×4 54個）</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Inter', sans-serif;
+            color: #f3f4f6;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(15, 20, 25, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            width: 380px;
+            border-radius: 12px;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+        .gen-btn {
+            transition: all 0.3s ease;
+            font-size: 0.75rem;
+            padding: 0.5rem 0.25rem;
+        }
+        .gen-btn.active {
+            background: rgba(255, 165, 0, 0.3);
+            border-color: rgba(255, 165, 0, 0.8);
+            color: #ffa500;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="ui-panel" class="p-5">
+        <h2 class="text-xl font-bold mb-1 text-white border-b border-gray-700 pb-2">XYZ &times; FBI &times; (W₁ W₂ W₃) = 1</h2>
+        <p style="font-size: 0.8rem; margin-bottom: 15px; color: #aaa;">
+          動的空間ベクトル・単位球シミュレション
+        </p>
+
+        <div class="flex gap-1 mb-4">
+            <button id="btn-gen1" class="gen-btn active flex-1 rounded border border-gray-600 bg-gray-800/50 hover:bg-gray-700/50">
+                第1
+            </button>
+            <button id="btn-gen2" class="gen-btn flex-1 rounded border border-gray-600 bg-gray-800/50 hover:bg-gray-700/50">
+                第2
+            </button>
+            <button id="btn-gen3" class="gen-btn flex-1 rounded border border-gray-600 bg-gray-800/50 hover:bg-gray-700/50">
+                第3
+            </button>
+            <button id="btn-gen5" class="gen-btn flex-1 rounded border border-gray-600 bg-gray-800/50 hover:bg-gray-700/50">
+                第5
+            </button>
+        </div>
+
+        <div id="gen1-controls" class="space-y-4">
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <label class="text-gray-300 font-medium">単振動の速度 (F)</label>
+                    <span id="osc-val" class="text-orange-400 font-mono">1.0</span>
+                </div>
+                <input type="range" id="osc-speed" min="0" max="3" step="0.1" value="1.0">
+            </div>
+
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <label class="text-gray-300 font-medium">回転の速度 (B, I)</label>
+                    <span id="rot-val" class="text-cyan-400 font-mono">1.5</span>
+                </div>
+                <input type="range" id="rot-speed" min="0" max="5" step="0.1" value="1.5">
+            </div>
+        </div>
+
+        <div id="gen2-info" class="hidden mt-4 space-y-2 text-xs bg-gray-900/50 p-3 rounded-lg border border-orange-900/50">
+            <div class="flex justify-between items-center">
+                <p class="text-orange-300 font-bold">第2世代：正八面体 → 2×2×2完全収束</p>
+                <span id="phase-status" class="status-badge bg-gray-700 text-gray-300">待機中</span>
+            </div>
+            <p class="text-gray-400">親核2個が充満 → 各親核から子核2個ずつ生成。計6個が正八面体の頂点に配置（Z=0面で上下3個ずつ）。球が接触するまで拡大 → 2×2×2外郭に完全収束。</p>
+        </div>
+
+        <div id="gen3-info" class="hidden mt-4 space-y-2 text-xs bg-gray-900/50 p-3 rounded-lg border border-purple-900/50">
+            <div class="flex justify-between items-center">
+                <p class="text-purple-300 font-bold">第3世代：3×3×3 立方体格子完全収束</p>
+                <span id="phase-status3" class="status-badge bg-gray-700 text-gray-300">待機中</span>
+            </div>
+            <p class="text-gray-400">第2世代の6核が充満 → 各核から子核2個ずつ生成。計18個が3×3×3立方体格子のマス中心に配置（面中心6 + 辺中点12）。球の大きさは1×1×1マスに接触サイズ。</p>
+        </div>
+
+        <div id="gen5-info" class="hidden mt-4 space-y-2 text-xs bg-gray-900/50 p-3 rounded-lg border border-pink-900/50">
+            <div class="flex justify-between items-center">
+                <p class="text-pink-300 font-bold">第5世代：4×4×4 立方体格子 54個完全収束</p>
+                <span id="phase-status5" class="status-badge bg-gray-700 text-gray-300">待機中</span>
+            </div>
+            <p class="text-gray-400">第3世代の18核が充満 → 各核から子核を生成。計54個が4×4×4立方体格子のマス中心に配置。64マス中54個占有、10個の空席（頂点8 + 体対角線2）。球の大きさは1×1×1マスに接触サイズ。</p>
+        </div>
+
+        <div class="mt-4 space-y-2 text-xs bg-gray-900/50 p-3 rounded-lg border border-gray-800">
+            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-orange-500"></div> 第3世代継続 : 面中心・辺中点 18個</div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-pink-400"></div> 新規子核 : 36個</div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-blue-400"></div> 4×4×4 立方体 : 54個の球を完全内包</div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-gray-600"></div> 空席 : 10個（頂点8 + 体対角線2）</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(6, 6, 5);
+        camera.up.set(0, 0, 1);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // === 第1世代のセットアップ ===
+        const axesHelper = new THREE.AxesHelper(3);
+        scene.add(axesHelper);
+
+        const gridHelper = new THREE.GridHelper(10, 20, 0x444444, 0x1a1a1a);
+        gridHelper.rotation.x = Math.PI / 2;
+        scene.add(gridHelper);
+
+        const colF = 0xffa500;
+        const colB = 0x00ffff;
+        const colI = 0x9acd32;
+
+        function createSphere(color, size = 0.08, parent = scene) {
+            const geo = new THREE.SphereGeometry(size, 32, 32);
+            const mat = new THREE.MeshBasicMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            parent.add(mesh);
+            return mesh;
+        }
+
+        function createDynamicLine(color, parent = scene) {
+            const mat = new THREE.LineBasicMaterial({ color: color, linewidth: 2 });
+            const geo = new THREE.BufferGeometry();
+            const positions = new Float32Array(6);
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const line = new THREE.Line(geo, mat);
+            parent.add(line);
+            return line;
+        }
+
+        function updateDynamicLine(line, p1, p2) {
+            const positions = line.geometry.attributes.position.array;
+            positions[0] = p1.x; positions[1] = p1.y; positions[2] = p1.z;
+            positions[3] = p2.x; positions[4] = p2.y; positions[5] = p2.z;
+            line.geometry.attributes.position.needsUpdate = true;
+        }
+
+        class Trail {
+            constructor(maxPoints, color) {
+                this.maxPoints = maxPoints;
+                this.count = 0;
+                this.positions = new Float32Array(maxPoints * 3);
+                this.geometry = new THREE.BufferGeometry();
+                this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+                this.material = new THREE.LineBasicMaterial({ 
+                    color: color, 
+                    transparent: true, 
+                    opacity: 0.6 
+                });
+                this.line = new THREE.Line(this.geometry, this.material);
+                scene.add(this.line);
+            }
+
+            update(pos) {
+                for(let i = 0; i < (this.maxPoints - 1) * 3; i++) {
+                    this.positions[i] = this.positions[i + 3];
+                }
+                const lastIdx = (this.maxPoints - 1) * 3;
+                this.positions[lastIdx] = pos.x;
+                this.positions[lastIdx + 1] = pos.y;
+                this.positions[lastIdx + 2] = pos.z;
+
+                if (this.count < this.maxPoints) this.count++;
+                this.geometry.setDrawRange(this.maxPoints - this.count, this.count);
+                this.geometry.attributes.position.needsUpdate = true;
+            }
+        }
+
+        const MAX_TRAIL_PTS = 1500;
+
+        const group_p = new THREE.Group();
+        const group_m = new THREE.Group();
+
+        group_p.position.set(0, 0, 1);
+        group_m.position.set(0, 0, -1);
+
+        scene.add(group_p);
+        scene.add(group_m);
+
+        const originPoint = createSphere(0x666666, 0.05, scene); 
+        originPoint.position.set(0,0,0);
+
+        const fixedAxis_p = createDynamicLine(0x333333, scene);
+        updateDynamicLine(fixedAxis_p, new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,1));
+        const fixedAxis_m = createDynamicLine(0x333333, scene);
+        updateDynamicLine(fixedAxis_m, new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1));
+
+        const originPoint_p = createSphere(0xffffff, 0.05, group_p); 
+        originPoint_p.position.set(0,0,0);
+
+        const axisLine_p = createDynamicLine(0x666666, group_p);
+        updateDynamicLine(axisLine_p, new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 1));
+
+        const endPoint_p1 = createSphere(0x555555, 0.03, group_p);
+        endPoint_p1.position.set(0, 0, 1);
+        const endPoint_p2 = createSphere(0x555555, 0.03, group_p);
+        endPoint_p2.position.set(0, 0, -1);
+
+        const pointF_p = createSphere(colF, 0.08, group_p);
+        const pointB_p = createSphere(colB, 0.08, group_p);
+        const pointI_p = createSphere(colI, 0.08, group_p);
+
+        const line_Fp_Bp = createDynamicLine(colB, group_p);
+        const line_Fp_Ip = createDynamicLine(colI, group_p);
+
+        const trail_Bp = new Trail(MAX_TRAIL_PTS, colB);
+        const trail_Ip = new Trail(MAX_TRAIL_PTS, colI);
+
+        const originPoint_m = createSphere(0xffffff, 0.05, group_m); 
+        originPoint_m.position.set(0,0,0);
+
+        const axisLine_m = createDynamicLine(0x666666, group_m);
+        updateDynamicLine(axisLine_m, new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 1));
+
+        const endPoint_m1 = createSphere(0x555555, 0.03, group_m);
+        endPoint_m1.position.set(0, 0, 1);
+        const endPoint_m2 = createSphere(0x555555, 0.03, group_m);
+        endPoint_m2.position.set(0, 0, -1);
+
+        const pointF_m = createSphere(colF, 0.08, group_m);
+        const pointB_m = createSphere(colB, 0.08, group_m);
+        const pointI_m = createSphere(colI, 0.08, group_m);
+
+        const line_Fm_Bm = createDynamicLine(colB, group_m);
+        const line_Fm_Im = createDynamicLine(colI, group_m);
+
+        const trail_Bm = new Trail(MAX_TRAIL_PTS, colB);
+        const trail_Im = new Trail(MAX_TRAIL_PTS, colI);
+
+        // ============================================================
+        // === 第2世代：正八面体（2×2×2外郭に完全収束） ===
+        // ============================================================
+        const gen2Group = new THREE.Group();
+        scene.add(gen2Group);
+        gen2Group.visible = false;
+
+        const sqrt2 = Math.sqrt(2);
+        const sqrt3 = Math.sqrt(3);
+        const sqrt6 = Math.sqrt(6);
+
+        const OCTA_SCALE = 1 / sqrt2;
+        const s2 = OCTA_SCALE;
+
+        const octaVertices = [
+            new THREE.Vector3(  s2/sqrt2,   s2/sqrt6,   s2/sqrt3 ),
+            new THREE.Vector3( -s2/sqrt2,   s2/sqrt6,   s2/sqrt3 ),
+            new THREE.Vector3( 0,        -2*s2/sqrt6,   s2/sqrt3 ),
+            new THREE.Vector3( -s2/sqrt2,  -s2/sqrt6,  -s2/sqrt3 ),
+            new THREE.Vector3(  s2/sqrt2,  -s2/sqrt6,  -s2/sqrt3 ),
+            new THREE.Vector3( 0,         2*s2/sqrt6,  -s2/sqrt3 )
+        ];
+
+        const octaEdges = [
+            [0,1], [0,2], [0,4], [0,5],
+            [3,1], [3,2], [3,4], [3,5],
+            [1,2], [1,5], [4,2], [4,5]
+        ];
+
+        const CONTACT_SCALE = 0.5 / 0.28;
+
+        const gen2NucleusData = [
+            { idx: 0, type: 'parent',  plane: 'up',   color: 0xff8800, glowColor: 0xff6600 },
+            { idx: 1, type: 'child',   plane: 'up',   color: 0x00dddd, glowColor: 0x00aaaa },
+            { idx: 2, type: 'child',   plane: 'up',   color: 0x00dddd, glowColor: 0x00aaaa },
+            { idx: 3, type: 'parent',  plane: 'down', color: 0x9acd32, glowColor: 0x88bb22 },
+            { idx: 4, type: 'child',   plane: 'down', color: 0x9acd32, glowColor: 0x88bb22 },
+            { idx: 5, type: 'child',   plane: 'down', color: 0x9acd32, glowColor: 0x88bb22 }
+        ];
+
+        const box1x1x2Geo = new THREE.BoxGeometry(1, 1, 2);
+        const box1x1x2Edges = new THREE.EdgesGeometry(box1x1x2Geo);
+        const box1x1x2Mat = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0 });
+        const box1x1x2 = new THREE.LineSegments(box1x1x2Edges, box1x1x2Mat);
+        gen2Group.add(box1x1x2);
+
+        function createThickCube(size, color, opacity, parent) {
+            const group = new THREE.Group();
+            const geo = new THREE.BoxGeometry(size, size, size);
+            const edges = new THREE.EdgesGeometry(geo);
+
+            const mat = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: opacity });
+            const line = new THREE.LineSegments(edges, mat);
+            group.add(line);
+
+            const geo2 = new THREE.BoxGeometry(size * 1.003, size * 1.003, size * 1.003);
+            const edges2 = new THREE.EdgesGeometry(geo2);
+            const mat2 = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: opacity * 0.3 });
+            const line2 = new THREE.LineSegments(edges2, mat2);
+            group.add(line2);
+
+            parent.add(group);
+            return { group, mat, mat2 };
+        }
+
+        const cube2Obj = createThickCube(2, 0x66aaff, 0, gen2Group);
+        const cube2MainMat = cube2Obj.mat;
+        const cube2OuterMat = cube2Obj.mat2;
+
+        const cube2DiagMat = new THREE.LineBasicMaterial({ color: 0x4488aa, transparent: true, opacity: 0 });
+        const cube2DiagGeo = new THREE.BufferGeometry();
+        const cube2DiagPos = new Float32Array([
+            -1,-1,-1,  1,1,-1,   1,-1,-1,  -1,1,-1,
+            -1,-1,1,   1,1,1,    1,-1,1,   -1,1,1,
+            -1,-1,-1,  1,1,1,    1,-1,-1,  -1,1,1,
+            -1,1,-1,   1,-1,1,   1,1,-1,   -1,-1,1
+        ]);
+        cube2DiagGeo.setAttribute('position', new THREE.BufferAttribute(cube2DiagPos, 3));
+        const cube2Diagonals = new THREE.LineSegments(cube2DiagGeo, cube2DiagMat);
+        gen2Group.add(cube2Diagonals);
+
+        const z0PlaneGeo = new THREE.PlaneGeometry(2.2, 2.2);
+        const z0PlaneMat = new THREE.MeshBasicMaterial({ 
+            color: 0x4488aa, 
+            transparent: true, 
+            opacity: 0,
+            side: THREE.DoubleSide
+        });
+        const z0Plane = new THREE.Mesh(z0PlaneGeo, z0PlaneMat);
+        z0Plane.position.set(0, 0, 0);
+        gen2Group.add(z0Plane);
+
+        const octaEdgeMat = new THREE.LineBasicMaterial({ color: 0x66aaff, transparent: true, opacity: 0 });
+        const octaEdgeGeo = new THREE.BufferGeometry();
+        const octaEdgePos = new Float32Array(octaEdges.length * 2 * 3);
+        let eidx = 0;
+        octaEdges.forEach(([a, b]) => {
+            const va = octaVertices[a];
+            const vb = octaVertices[b];
+            octaEdgePos[eidx++] = va.x; octaEdgePos[eidx++] = va.y; octaEdgePos[eidx++] = va.z;
+            octaEdgePos[eidx++] = vb.x; octaEdgePos[eidx++] = vb.y; octaEdgePos[eidx++] = vb.z;
+        });
+        octaEdgeGeo.setAttribute('position', new THREE.BufferAttribute(octaEdgePos, 3));
+        const octaWireframe = new THREE.LineSegments(octaEdgeGeo, octaEdgeMat);
+        gen2Group.add(octaWireframe);
+
+        const gen2NucleusMeshes = [];
+        const gen2NucleusGlows = [];
+        const gen2NucleusCores = [];
+        const gen2NucleusParticles = [];
+        const gen2ContactGlows = [];
+
+        gen2NucleusData.forEach((nd, i) => {
+            const group = new THREE.Group();
+            const pos = octaVertices[nd.idx];
+            group.position.copy(pos);
+            group.scale.set(0.01, 0.01, 0.01);
+
+            const glowGeo = new THREE.SphereGeometry(0.28, 32, 32);
+            const glowMat = new THREE.MeshBasicMaterial({ color: nd.glowColor, transparent: true, opacity: 0.25 });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            group.add(glow);
+            gen2NucleusGlows.push(glow);
+
+            const coreGeo = new THREE.SphereGeometry(0.1, 32, 32);
+            const coreMat = new THREE.MeshBasicMaterial({ color: nd.color });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            group.add(core);
+            gen2NucleusCores.push(core);
+
+            const pCount = 50;
+            const pGroup = new THREE.Group();
+            for(let j=0; j<pCount; j++) {
+                const pGeo = new THREE.SphereGeometry(0.012 + Math.random() * 0.015, 8, 8);
+                const pMat = new THREE.MeshBasicMaterial({
+                    color: j % 3 === 0 ? 0xffaa44 : (j % 3 === 1 ? 0xffffff : nd.color),
+                    transparent: true,
+                    opacity: 0.5 + Math.random() * 0.4
+                });
+                const p = new THREE.Mesh(pGeo, pMat);
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = Math.random() * 0.24;
+                p.position.set(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.sin(phi) * Math.sin(theta),
+                    r * Math.cos(phi)
+                );
+                p.userData = {
+                    basePos: p.position.clone(),
+                    phase: Math.random() * Math.PI * 2,
+                    speed: 0.8 + Math.random() * 2.5
+                };
+                pGroup.add(p);
+            }
+            group.add(pGroup);
+            gen2NucleusParticles.push(pGroup);
+
+            gen2Group.add(group);
+            gen2NucleusMeshes.push(group);
+        });
+
+        const gen2ParentOuterGlows = [];
+        [0, 3].forEach(parentIdx => {
+            const pos = octaVertices[parentIdx];
+            const geo = new THREE.SphereGeometry(0.45, 32, 32);
+            const mat = new THREE.MeshBasicMaterial({
+                color: gen2NucleusData[parentIdx].glowColor,
+                transparent: true,
+                opacity: 0
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            gen2Group.add(mesh);
+            gen2ParentOuterGlows.push(mesh);
+        });
+
+        const contactGlowMat = new THREE.MeshBasicMaterial({ color: 0xff3333, transparent: true, opacity: 0 });
+        gen2NucleusData.forEach((nd, i) => {
+            const pos = octaVertices[nd.idx];
+            const geo = new THREE.SphereGeometry(0.32, 32, 32);
+            const mesh = new THREE.Mesh(geo, contactGlowMat.clone());
+            mesh.position.copy(pos);
+            mesh.scale.set(0.01, 0.01, 0.01);
+            gen2Group.add(mesh);
+            gen2ContactGlows.push(mesh);
+        });
+
+        // ============================================================
+        // === 第3世代：3×3×3 立方体格子に18個の球 ===
+        // ============================================================
+        const gen3Group = new THREE.Group();
+        scene.add(gen3Group);
+        gen3Group.visible = false;
+
+        const cube3Obj = createThickCube(2, 0x88ccff, 0, gen3Group);
+        const cube3MainMat = cube3Obj.mat;
+        const cube3OuterMat = cube3Obj.mat2;
+
+        const grid3Mat = new THREE.LineBasicMaterial({ color: 0x4488aa, transparent: true, opacity: 0 });
+        const grid3Pos = [];
+        for(let y of [-1, 0, 1]) {
+            for(let z of [-1, 0, 1]) {
+                grid3Pos.push(-1, y, z,  1, y, z);
+            }
+        }
+        for(let x of [-1, 0, 1]) {
+            for(let z of [-1, 0, 1]) {
+                grid3Pos.push(x, -1, z,  x, 1, z);
+            }
+        }
+        for(let x of [-1, 0, 1]) {
+            for(let y of [-1, 0, 1]) {
+                grid3Pos.push(x, y, -1,  x, y, 1);
+            }
+        }
+        const grid3Geo = new THREE.BufferGeometry();
+        grid3Geo.setAttribute('position', new THREE.Float32BufferAttribute(grid3Pos, 3));
+        const grid3Lines = new THREE.LineSegments(grid3Geo, grid3Mat);
+        gen3Group.add(grid3Lines);
+
+        const CELL_3 = 2 / 3;
+        const GEN3_RADIUS = CELL_3 / 2;
+        const GEN3_GLOW_RADIUS = GEN3_RADIUS * 0.82;
+
+        const gen3NucleusData = [];
+
+        const faceCenters = [
+            { pos: [CELL_3, 0, 0], color: 0xff8800, glowColor: 0xff6600, source: 'gen2' },
+            { pos: [-CELL_3, 0, 0], color: 0xff8800, glowColor: 0xff6600, source: 'gen2' },
+            { pos: [0, CELL_3, 0], color: 0x00dddd, glowColor: 0x00aaaa, source: 'gen2' },
+            { pos: [0, -CELL_3, 0], color: 0x00dddd, glowColor: 0x00aaaa, source: 'gen2' },
+            { pos: [0, 0, CELL_3], color: 0x9acd32, glowColor: 0x88bb22, source: 'gen2' },
+            { pos: [0, 0, -CELL_3], color: 0x9acd32, glowColor: 0x88bb22, source: 'gen2' }
+        ];
+
+        const edgeCenters = [
+            { pos: [CELL_3, CELL_3, 0], color: 0xaa66ff, glowColor: 0x8844cc, source: 'gen3' },
+            { pos: [CELL_3, -CELL_3, 0], color: 0xaa66ff, glowColor: 0x8844cc, source: 'gen3' },
+            { pos: [-CELL_3, CELL_3, 0], color: 0xaa66ff, glowColor: 0x8844cc, source: 'gen3' },
+            { pos: [-CELL_3, -CELL_3, 0], color: 0xaa66ff, glowColor: 0x8844cc, source: 'gen3' },
+            { pos: [CELL_3, 0, CELL_3], color: 0xff66aa, glowColor: 0xcc4499, source: 'gen3' },
+            { pos: [CELL_3, 0, -CELL_3], color: 0xff66aa, glowColor: 0xcc4499, source: 'gen3' },
+            { pos: [-CELL_3, 0, CELL_3], color: 0xff66aa, glowColor: 0xcc4499, source: 'gen3' },
+            { pos: [-CELL_3, 0, -CELL_3], color: 0xff66aa, glowColor: 0xcc4499, source: 'gen3' },
+            { pos: [0, CELL_3, CELL_3], color: 0x66aaff, glowColor: 0x4488cc, source: 'gen3' },
+            { pos: [0, CELL_3, -CELL_3], color: 0x66aaff, glowColor: 0x4488cc, source: 'gen3' },
+            { pos: [0, -CELL_3, CELL_3], color: 0x66aaff, glowColor: 0x4488cc, source: 'gen3' },
+            { pos: [0, -CELL_3, -CELL_3], color: 0x66aaff, glowColor: 0x4488cc, source: 'gen3' }
+        ];
+
+        faceCenters.forEach((fc, i) => {
+            gen3NucleusData.push({ ...fc, idx: i, type: 'face' });
+        });
+        edgeCenters.forEach((ec, i) => {
+            gen3NucleusData.push({ ...ec, idx: i + 6, type: 'edge' });
+        });
+
+        const gen3NucleusMeshes = [];
+        const gen3NucleusGlows = [];
+        const gen3NucleusCores = [];
+        const gen3NucleusParticles = [];
+
+        gen3NucleusData.forEach((nd, i) => {
+            const group = new THREE.Group();
+            group.position.set(...nd.pos);
+            group.scale.set(0.01, 0.01, 0.01);
+
+            const glowGeo = new THREE.SphereGeometry(GEN3_GLOW_RADIUS, 32, 32);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: nd.glowColor,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            group.add(glow);
+            gen3NucleusGlows.push(glow);
+
+            const coreGeo = new THREE.SphereGeometry(GEN3_RADIUS * 0.38, 32, 32);
+            const coreMat = new THREE.MeshBasicMaterial({ color: nd.color });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            group.add(core);
+            gen3NucleusCores.push(core);
+
+            const pCount = nd.source === 'gen2' ? 40 : 30;
+            const pGroup = new THREE.Group();
+            for(let j=0; j<pCount; j++) {
+                const pGeo = new THREE.SphereGeometry(0.007 + Math.random() * 0.009, 8, 8);
+                const pMat = new THREE.MeshBasicMaterial({
+                    color: j % 3 === 0 ? 0xffffff : (j % 3 === 1 ? nd.color : 0xffaa44),
+                    transparent: true,
+                    opacity: 0.5 + Math.random() * 0.4
+                });
+                const p = new THREE.Mesh(pGeo, pMat);
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = Math.random() * GEN3_GLOW_RADIUS * 0.85;
+                p.position.set(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.sin(phi) * Math.sin(theta),
+                    r * Math.cos(phi)
+                );
+                p.userData = {
+                    basePos: p.position.clone(),
+                    phase: Math.random() * Math.PI * 2,
+                    speed: 0.8 + Math.random() * 2.5
+                };
+                pGroup.add(p);
+            }
+            group.add(pGroup);
+            gen3NucleusParticles.push(pGroup);
+
+            gen3Group.add(group);
+            gen3NucleusMeshes.push(group);
+        });
+
+        const gen3EnergyMat = new THREE.LineBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0 });
+        const gen3EnergyLines = [];
+
+        for(let i = 0; i < gen3NucleusData.length; i++) {
+            for(let j = i + 1; j < gen3NucleusData.length; j++) {
+                const a = gen3NucleusData[i].pos;
+                const b = gen3NucleusData[j].pos;
+                const dist = Math.sqrt(
+                    Math.pow(a[0]-b[0], 2) + Math.pow(a[1]-b[1], 2) + Math.pow(a[2]-b[2], 2)
+                );
+                if(dist >= CELL_3 * 0.9 && dist <= CELL_3 * 1.5) {
+                    const geo = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(...a),
+                        new THREE.Vector3(...b)
+                    ]);
+                    const line = new THREE.Line(geo, gen3EnergyMat.clone());
+                    gen3Group.add(line);
+                    gen3EnergyLines.push(line);
+                }
+            }
+        }
+
+        const emptyPositions3 = [
+            [CELL_3, CELL_3, CELL_3], [CELL_3, CELL_3, -CELL_3], [CELL_3, -CELL_3, CELL_3], [CELL_3, -CELL_3, -CELL_3],
+            [-CELL_3, CELL_3, CELL_3], [-CELL_3, CELL_3, -CELL_3], [-CELL_3, -CELL_3, CELL_3], [-CELL_3, -CELL_3, -CELL_3],
+            [0, 0, 0]
+        ];
+        const emptyMeshes3 = [];
+        emptyPositions3.forEach((ep, i) => {
+            const geo = new THREE.SphereGeometry(0.035, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0x444444,
+                transparent: true,
+                opacity: 0
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(...ep);
+            gen3Group.add(mesh);
+            emptyMeshes3.push(mesh);
+        });
+
+        // ============================================================
+        // === 第5世代：4×4×4 立方体格子に54個の球 ===
+        // ============================================================
+        const gen5Group = new THREE.Group();
+        scene.add(gen5Group);
+        gen5Group.visible = false;
+
+        const cube5Obj = createThickCube(2, 0x88ccff, 0, gen5Group);
+        const cube5MainMat = cube5Obj.mat;
+        const cube5OuterMat = cube5Obj.mat2;
+
+        const grid5Mat = new THREE.LineBasicMaterial({ color: 0x4488aa, transparent: true, opacity: 0 });
+        const grid5Pos = [];
+        const vals4 = [-1, -0.5, 0, 0.5, 1];
+        for(let y of vals4) {
+            for(let z of vals4) {
+                grid5Pos.push(-1, y, z,  1, y, z);
+            }
+        }
+        for(let x of vals4) {
+            for(let z of vals4) {
+                grid5Pos.push(x, -1, z,  x, 1, z);
+            }
+        }
+        for(let x of vals4) {
+            for(let y of vals4) {
+                grid5Pos.push(x, y, -1,  x, y, 1);
+            }
+        }
+        const grid5Geo = new THREE.BufferGeometry();
+        grid5Geo.setAttribute('position', new THREE.Float32BufferAttribute(grid5Pos, 3));
+        const grid5Lines = new THREE.LineSegments(grid5Geo, grid5Mat);
+        gen5Group.add(grid5Lines);
+
+        const CELL_4 = 2 / 4;
+        const GEN5_RADIUS = CELL_4 / 2;
+        const GEN5_GLOW_RADIUS = GEN5_RADIUS * 0.82;
+
+        const gen5NucleusData = [];
+        const gen5EmptyData = [];
+
+        const vals = [-0.75, -0.25, 0.25, 0.75];
+
+        const allCells = [];
+        for(let x of vals) {
+            for(let y of vals) {
+                for(let z of vals) {
+                    const ax = Math.abs(x);
+                    const ay = Math.abs(y);
+                    const az = Math.abs(z);
+
+                    if(ax === 0.75 && ay === 0.75 && az === 0.75) {
+                        gen5EmptyData.push({ pos: [x, y, z], type: 'corner' });
+                    }
+                    else if(ax === 0.25 && ay === 0.25 && az === 0.25) {
+                        if((x > 0 && y > 0 && z > 0) || (x < 0 && y < 0 && z < 0)) {
+                            gen5EmptyData.push({ pos: [x, y, z], type: 'diagonal' });
+                        } else {
+                            allCells.push({ pos: [x, y, z] });
+                        }
+                    }
+                    else {
+                        allCells.push({ pos: [x, y, z] });
+                    }
+                }
+            }
+        }
+
+        allCells.forEach((cell, i) => {
+            const { pos } = cell;
+            let count75 = 0;
+            let count25 = 0;
+            [Math.abs(pos[0]), Math.abs(pos[1]), Math.abs(pos[2])].forEach(v => {
+                if(Math.abs(v - 0.75) < 0.01) count75++;
+                if(Math.abs(v - 0.25) < 0.01) count25++;
+            });
+
+            let color, glowColor, type;
+
+            if(count75 === 1 && count25 === 2) {
+                color = 0xaa66ff;
+                glowColor = 0x8844cc;
+                type = 'A';
+            } else if(count75 === 2 && count25 === 1) {
+                color = 0xff66aa;
+                glowColor = 0xcc4499;
+                type = 'B';
+            } else if(count75 === 0 && count25 === 3) {
+                color = 0x66aaff;
+                glowColor = 0x4488cc;
+                type = 'C';
+            } else {
+                color = 0xaaaaaa;
+                glowColor = 0x888888;
+                type = 'X';
+            }
+
+            gen5NucleusData.push({ pos, color, glowColor, type, idx: i });
+        });
+
+        console.log('Gen5 nuclei:', gen5NucleusData.length, 'Empty:', gen5EmptyData.length);
+
+        const gen5NucleusMeshes = [];
+        const gen5NucleusGlows = [];
+        const gen5NucleusCores = [];
+
+        gen5NucleusData.forEach((nd, i) => {
+            const group = new THREE.Group();
+            group.position.set(...nd.pos);
+            group.scale.set(0.01, 0.01, 0.01);
+
+            const glowGeo = new THREE.SphereGeometry(GEN5_GLOW_RADIUS, 24, 24);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: nd.glowColor,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            group.add(glow);
+            gen5NucleusGlows.push(glow);
+
+            const coreGeo = new THREE.SphereGeometry(GEN5_RADIUS * 0.38, 24, 24);
+            const coreMat = new THREE.MeshBasicMaterial({ color: nd.color });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            group.add(core);
+            gen5NucleusCores.push(core);
+
+            gen5Group.add(group);
+            gen5NucleusMeshes.push(group);
+        });
+
+        const emptyMeshes5 = [];
+        gen5EmptyData.forEach((ed, i) => {
+            const geo = new THREE.SphereGeometry(0.03, 12, 12);
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0x444444,
+                transparent: true,
+                opacity: 0
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(...ed.pos);
+            gen5Group.add(mesh);
+            emptyMeshes5.push(mesh);
+        });
+
+        const gen5EnergyMat = new THREE.LineBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0 });
+        const gen5EnergyLines = [];
+
+        for(let i = 0; i < gen5NucleusData.length; i++) {
+            for(let j = i + 1; j < gen5NucleusData.length; j++) {
+                const a = gen5NucleusData[i].pos;
+                const b = gen5NucleusData[j].pos;
+                const dist = Math.sqrt(
+                    Math.pow(a[0]-b[0], 2) + Math.pow(a[1]-b[1], 2) + Math.pow(a[2]-b[2], 2)
+                );
+                if(dist >= CELL_4 * 0.9 && dist <= CELL_4 * 1.1) {
+                    const geo = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(...a),
+                        new THREE.Vector3(...b)
+                    ]);
+                    const line = new THREE.Line(geo, gen5EnergyMat.clone());
+                    gen5Group.add(line);
+                    gen5EnergyLines.push(line);
+                }
+            }
+        }
+
+        // 状態管理
+        let generation = 1;
+        let phase = 0;
+        let timer = 0;
+        const clock = new THREE.Clock();
+
+        const btnGen1 = document.getElementById('btn-gen1');
+        const btnGen2 = document.getElementById('btn-gen2');
+        const btnGen3 = document.getElementById('btn-gen3');
+        const btnGen5 = document.getElementById('btn-gen5');
+        const gen1Controls = document.getElementById('gen1-controls');
+        const gen2Info = document.getElementById('gen2-info');
+        const gen3Info = document.getElementById('gen3-info');
+        const gen5Info = document.getElementById('gen5-info');
+        const phaseStatus = document.getElementById('phase-status');
+        const phaseStatus3 = document.getElementById('phase-status3');
+        const phaseStatus5 = document.getElementById('phase-status5');
+        const uiOscSpeed = document.getElementById('osc-speed');
+        const uiRotSpeed = document.getElementById('rot-speed');
+        const uiOscVal = document.getElementById('osc-val');
+        const uiRotVal = document.getElementById('rot-val');
+
+        uiOscSpeed.addEventListener('input', (e) => uiOscVal.innerText = parseFloat(e.target.value).toFixed(1));
+        uiRotSpeed.addEventListener('input', (e) => uiRotVal.innerText = parseFloat(e.target.value).toFixed(1));
+
+        function resetAll() {
+            generation = 1;
+            phase = 0;
+            timer = 0;
+
+            btnGen1.classList.add('active');
+            btnGen2.classList.remove('active');
+            btnGen3.classList.remove('active');
+            btnGen5.classList.remove('active');
+            gen1Controls.classList.remove('hidden');
+            gen2Info.classList.add('hidden');
+            gen3Info.classList.add('hidden');
+            gen5Info.classList.add('hidden');
+
+            gen2Group.visible = false;
+            gen3Group.visible = false;
+            gen5Group.visible = false;
+
+            group_p.visible = true;
+            group_m.visible = true;
+            axesHelper.visible = true;
+            gridHelper.visible = true;
+            originPoint.visible = true;
+            fixedAxis_p.visible = true;
+            fixedAxis_m.visible = true;
+
+            trail_Bp.material.opacity = 0.6;
+            trail_Ip.material.opacity = 0.6;
+            trail_Bm.material.opacity = 0.6;
+            trail_Im.material.opacity = 0.6;
+        }
+
+        btnGen1.addEventListener('click', resetAll);
+
+        btnGen2.addEventListener('click', () => {
+            if(generation === 2) return;
+            resetAll();
+            generation = 2;
+            phase = 1;
+            timer = 0;
+
+            btnGen2.classList.add('active');
+            btnGen1.classList.remove('active');
+            gen1Controls.classList.add('hidden');
+            gen2Info.classList.remove('hidden');
+            gen2Group.visible = true;
+
+            group_p.visible = false;
+            group_m.visible = false;
+            axesHelper.visible = false;
+            gridHelper.visible = false;
+            originPoint.visible = false;
+            fixedAxis_p.visible = false;
+            fixedAxis_m.visible = false;
+
+            trail_Bp.material.opacity = 0.06;
+            trail_Ip.material.opacity = 0.06;
+            trail_Bm.material.opacity = 0.06;
+            trail_Im.material.opacity = 0.06;
+
+            gen2NucleusMeshes.forEach(mesh => mesh.scale.set(0.01, 0.01, 0.01));
+            gen2ParentOuterGlows.forEach(g => { g.material.opacity = 0; g.scale.set(1,1,1); });
+            gen2ContactGlows.forEach(g => { g.material.opacity = 0; g.scale.set(0.01,0.01,0.01); });
+            box1x1x2.material.opacity = 0;
+            cube2MainMat.opacity = 0;
+            cube2OuterMat.opacity = 0;
+            cube2DiagMat.opacity = 0;
+            octaEdgeMat.opacity = 0;
+            z0PlaneMat.opacity = 0;
+
+            phaseStatus.textContent = '親核充満中';
+            phaseStatus.className = 'status-badge bg-orange-900/60 text-orange-300';
+        });
+
+        btnGen3.addEventListener('click', () => {
+            if(generation === 3) return;
+            resetAll();
+            generation = 3;
+            phase = 1;
+            timer = 0;
+
+            btnGen3.classList.add('active');
+            btnGen1.classList.remove('active');
+            gen1Controls.classList.add('hidden');
+            gen3Info.classList.remove('hidden');
+            gen2Group.visible = true;
+            gen3Group.visible = true;
+
+            group_p.visible = false;
+            group_m.visible = false;
+            axesHelper.visible = false;
+            gridHelper.visible = false;
+            originPoint.visible = false;
+            fixedAxis_p.visible = false;
+            fixedAxis_m.visible = false;
+
+            trail_Bp.material.opacity = 0.04;
+            trail_Ip.material.opacity = 0.04;
+            trail_Bm.material.opacity = 0.04;
+            trail_Im.material.opacity = 0.04;
+
+            gen2NucleusMeshes.forEach((mesh, i) => {
+                mesh.position.copy(octaVertices[gen2NucleusData[i].idx]);
+                mesh.scale.set(CONTACT_SCALE, CONTACT_SCALE, CONTACT_SCALE);
+                gen2NucleusGlows[i].material.opacity = 0.45;
+            });
+            gen2ContactGlows.forEach(g => {
+                g.scale.set(CONTACT_SCALE, CONTACT_SCALE, CONTACT_SCALE);
+                g.material.opacity = 0.3;
+            });
+            octaEdgeMat.opacity = 0.6;
+            octaEdgeMat.color.setRGB(0.8, 0.4, 0.4);
+            cube2MainMat.opacity = 0.4;
+            cube2OuterMat.opacity = 0.12;
+            box1x1x2.material.opacity = 0.3;
+            z0PlaneMat.opacity = 0.08;
+
+            gen3NucleusMeshes.forEach(mesh => mesh.scale.set(0.01, 0.01, 0.01));
+            gen3EnergyLines.forEach(line => line.material.opacity = 0);
+            cube3MainMat.opacity = 0;
+            cube3OuterMat.opacity = 0;
+            grid3Mat.opacity = 0;
+            emptyMeshes3.forEach(em => em.material.opacity = 0);
+
+            phaseStatus3.textContent = '第2世代核充満中';
+            phaseStatus3.className = 'status-badge bg-orange-900/60 text-orange-300';
+        });
+
+        btnGen5.addEventListener('click', () => {
+            if(generation === 5) return;
+            resetAll();
+            generation = 5;
+            phase = 1;
+            timer = 0;
+
+            btnGen5.classList.add('active');
+            btnGen1.classList.remove('active');
+            gen1Controls.classList.add('hidden');
+            gen5Info.classList.remove('hidden');
+            gen3Group.visible = true;
+            gen5Group.visible = true;
+
+            group_p.visible = false;
+            group_m.visible = false;
+            axesHelper.visible = false;
+            gridHelper.visible = false;
+            originPoint.visible = false;
+            fixedAxis_p.visible = false;
+            fixedAxis_m.visible = false;
+
+            trail_Bp.material.opacity = 0.03;
+            trail_Ip.material.opacity = 0.03;
+            trail_Bm.material.opacity = 0.03;
+            trail_Im.material.opacity = 0.03;
+
+            gen3NucleusMeshes.forEach((mesh, i) => {
+                mesh.position.set(...gen3NucleusData[i].pos);
+                mesh.scale.set(1, 1, 1);
+                gen3NucleusGlows[i].material.opacity = 0.4;
+            });
+            gen3EnergyLines.forEach(line => line.material.opacity = 0.35);
+            cube3MainMat.opacity = 0.5;
+            cube3OuterMat.opacity = 0.2;
+            grid3Mat.opacity = 0.2;
+            emptyMeshes3.forEach(em => em.material.opacity = 0.35);
+
+            gen5NucleusMeshes.forEach(mesh => mesh.scale.set(0.01, 0.01, 0.01));
+            gen5EnergyLines.forEach(line => line.material.opacity = 0);
+            cube5MainMat.opacity = 0;
+            cube5OuterMat.opacity = 0;
+            grid5Mat.opacity = 0;
+            emptyMeshes5.forEach(em => em.material.opacity = 0);
+
+            phaseStatus5.textContent = '第3世代核充満中';
+            phaseStatus5.className = 'status-badge bg-purple-900/60 text-purple-300';
+        });
+
+        let phaseOsc = 0;
+        let phaseRot = 0;
+        let phaseAxis = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            const dt = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            const oscSpd = parseFloat(uiOscSpeed.value);
+            const rotSpd = parseFloat(uiRotSpeed.value);
+
+            phaseAxis += dt * 0.4;
+
+            group_p.rotation.x = phaseAxis * 1.0;
+            group_p.rotation.y = phaseAxis * 1.618;
+            group_p.rotation.z = phaseAxis * 1.324;
+
+            group_m.rotation.x = phaseAxis * 1.414;
+            group_m.rotation.y = -phaseAxis * 1.0;
+            group_m.rotation.z = -phaseAxis * 1.732;
+
+            phaseOsc += dt * oscSpd;
+
+            const local_zPlus = -Math.cos(phaseOsc);
+            const local_zMinus = Math.cos(phaseOsc);
+
+            const wp_F_p = new THREE.Vector3();
+            pointF_p.getWorldPosition(wp_F_p);
+
+            const wp_F_m = new THREE.Vector3();
+            pointF_m.getWorldPosition(wp_F_m);
+
+            const distance = wp_F_p.distanceTo(wp_F_m);
+
+            const forceInteraction = 1 + Math.max(0, (4 - distance) * 0.6); 
+            phaseRot += dt * rotSpd * forceInteraction;
+
+            pointF_p.position.set(0, 0, local_zPlus);
+            pointF_m.position.set(0, 0, local_zMinus);
+
+            const theta = phaseRot;
+            const thetaMinus = -phaseRot;
+
+            const ip_x = Math.cos(theta);
+            const ip_y = Math.sin(theta);
+            const bp_x = -Math.sin(theta);
+            const bp_y = Math.cos(theta);
+
+            pointI_p.position.set(ip_x, ip_y, 0);
+            pointB_p.position.set(bp_x, bp_y, 0);
+
+            const im_x = -Math.cos(thetaMinus);
+            const im_y = -Math.sin(thetaMinus);
+            const bm_x = Math.sin(thetaMinus);
+            const bm_y = -Math.cos(thetaMinus);
+
+            pointB_m.position.set(bm_x, bm_y, 0);
+            pointI_m.position.set(im_x, im_y, 0);
+
+            updateDynamicLine(line_Fp_Bp, pointF_p.position, pointB_p.position);
+            updateDynamicLine(line_Fp_Ip, pointF_p.position, pointI_p.position);
+            updateDynamicLine(line_Fm_Bm, pointF_m.position, pointB_m.position);
+            updateDynamicLine(line_Fm_Im, pointF_m.position, pointI_m.position);
+
+            const wpTemp = new THREE.Vector3();
+
+            pointB_p.getWorldPosition(wpTemp);
+            trail_Bp.update(wpTemp);
+
+            pointI_p.getWorldPosition(wpTemp);
+            trail_Ip.update(wpTemp);
+
+            pointB_m.getWorldPosition(wpTemp);
+            trail_Bm.update(wpTemp);
+
+            pointI_m.getWorldPosition(wpTemp);
+            trail_Im.update(wpTemp);
+
+            if(generation === 2 && gen2Group.visible) {
+                timer += dt;
+
+                if(phase === 1) {
+                    const t = Math.min(timer / 3, 1);
+                    box1x1x2.material.opacity = t * 0.5;
+                    cube2MainMat.opacity = t * 0.25;
+                    cube2OuterMat.opacity = t * 0.08;
+                    cube2DiagMat.opacity = t * 0.12;
+                    z0PlaneMat.opacity = t * 0.05;
+                    gen2NucleusData.forEach((nd, i) => {
+                        if(nd.type === 'parent') {
+                            const s = Math.min(1, t * 1.2);
+                            gen2NucleusMeshes[i].scale.set(s, s, s);
+                            gen2NucleusGlows[i].material.opacity = 0.2 + t * 0.3;
+                        }
+                    });
+                    gen2ParentOuterGlows.forEach((glow, idx) => {
+                        const pulse = 1 + Math.sin(timer * 5 + idx * Math.PI) * 0.2 * (1 - t);
+                        glow.scale.set(pulse, pulse, pulse);
+                        glow.material.opacity = Math.min(0.35, t * 0.4) * (0.7 + 0.3 * Math.sin(timer * 6));
+                    });
+                    gen2NucleusData.forEach((nd, i) => {
+                        if(nd.type === 'parent') {
+                            const pGroup = gen2NucleusParticles[i];
+                            pGroup.children.forEach(p => {
+                                const data = p.userData;
+                                const pulse = Math.sin(timer * data.speed * 4 + data.phase);
+                                p.position.copy(data.basePos).multiplyScalar(1 + pulse * 0.5);
+                                p.material.opacity = 0.4 + Math.sin(timer * 5 + data.phase) * 0.35;
+                            });
+                            pGroup.rotation.x = timer * 0.4;
+                            pGroup.rotation.y = timer * 0.6;
+                        }
+                    });
+                    octaEdgeMat.opacity = t * 0.35;
+                    if(timer > 3) { phase = 2; timer = 0; phaseStatus.textContent = '上の子核生成中'; phaseStatus.className = 'status-badge bg-cyan-900/60 text-cyan-300'; }
+                }
+                else if(phase === 2) {
+                    const t = Math.min(timer / 3, 1);
+                    gen2NucleusData.forEach((nd, i) => {
+                        if(nd.plane === 'up' && nd.type === 'child') {
+                            const delay = (nd.idx === 1) ? 0 : 0.7;
+                            const localT = Math.max(0, Math.min(1, (timer - delay) / 1.8));
+                            if(localT > 0) {
+                                const s = localT < 0.12 ? localT / 0.12 : 1;
+                                gen2NucleusMeshes[i].scale.set(s, s, s);
+                                if(localT < 1) {
+                                    const parentPos = octaVertices[0];
+                                    const targetPos = octaVertices[nd.idx];
+                                    const ease = 1 - Math.pow(1 - localT, 3);
+                                    gen2NucleusMeshes[i].position.set(
+                                        parentPos.x + (targetPos.x - parentPos.x) * ease,
+                                        parentPos.y + (targetPos.y - parentPos.y) * ease,
+                                        parentPos.z + (targetPos.z - parentPos.z) * ease
+                                    );
+                                } else {
+                                    gen2NucleusMeshes[i].position.copy(octaVertices[nd.idx]);
+                                }
+                                gen2NucleusGlows[i].material.opacity = localT * 0.45;
+                            }
+                        }
+                    });
+                    if(timer > 3) { phase = 3; timer = 0; phaseStatus.textContent = '下の子核生成中'; phaseStatus.className = 'status-badge bg-lime-900/60 text-lime-300'; }
+                }
+                else if(phase === 3) {
+                    const t = Math.min(timer / 3, 1);
+                    gen2NucleusData.forEach((nd, i) => {
+                        if(nd.plane === 'down' && nd.type === 'child') {
+                            const delay = (nd.idx === 4) ? 0 : 0.7;
+                            const localT = Math.max(0, Math.min(1, (timer - delay) / 1.8));
+                            if(localT > 0) {
+                                const s = localT < 0.12 ? localT / 0.12 : 1;
+                                gen2NucleusMeshes[i].scale.set(s, s, s);
+                                if(localT < 1) {
+                                    const parentPos = octaVertices[3];
+                                    const targetPos = octaVertices[nd.idx];
+                                    const ease = 1 - Math.pow(1 - localT, 3);
+                                    gen2NucleusMeshes[i].position.set(
+                                        parentPos.x + (targetPos.x - parentPos.x) * ease,
+                                        parentPos.y + (targetPos.y - parentPos.y) * ease,
+                                        parentPos.z + (targetPos.z - parentPos.z) * ease
+                                    );
+                                } else {
+                                    gen2NucleusMeshes[i].position.copy(octaVertices[nd.idx]);
+                                }
+                                gen2NucleusGlows[i].material.opacity = localT * 0.45;
+                            }
+                        }
+                    });
+                    if(timer > 3) { phase = 4; timer = 0; phaseStatus.textContent = '球拡大 → 2×2×2収束'; phaseStatus.className = 'status-badge bg-red-900/60 text-red-300'; }
+                }
+                else if(phase === 4) {
+                    const t = Math.min(timer / 2.5, 1);
+                    const ease = 1 - Math.pow(1 - t, 3);
+                    const scale = 1 + (CONTACT_SCALE - 1) * ease;
+                    gen2NucleusMeshes.forEach((mesh, i) => {
+                        mesh.position.copy(octaVertices[gen2NucleusData[i].idx]);
+                        mesh.scale.set(scale, scale, scale);
+                        gen2NucleusGlows[i].material.opacity = 0.45 + t * 0.25;
+                    });
+                    gen2ContactGlows.forEach(g => {
+                        g.scale.set(scale, scale, scale);
+                        g.material.opacity = Math.min(0.5, t * 0.4);
+                    });
+
+                    octaEdgeMat.opacity = 0.6 * (1 - t * 0.7);
+                    const r = 0.4 + t * 0.2;
+                    const g = 0.67 - t * 0.3;
+                    const b = 1.0 - t * 0.5;
+                    octaEdgeMat.color.setRGB(r, g, b);
+
+                    cube2MainMat.opacity = 0.25 + t * 0.65;
+                    cube2MainMat.color.setHex(0x88ccff);
+                    cube2OuterMat.opacity = (0.25 + t * 0.65) * 0.4;
+                    cube2DiagMat.opacity = 0.12 + t * 0.38;
+                    box1x1x2.material.opacity = 0.3 * (1 - t * 0.5);
+                    z0PlaneMat.opacity = 0.05 + t * 0.08;
+
+                    if(timer > 2.5) { phase = 5; timer = 0; phaseStatus.textContent = '生成終了'; phaseStatus.className = 'status-badge bg-green-900/60 text-green-300'; }
+                }
+                else if(phase === 5) {
+                    gen2NucleusMeshes.forEach((mesh, i) => {
+                        mesh.scale.set(CONTACT_SCALE, CONTACT_SCALE, CONTACT_SCALE);
+                    });
+                    gen2ContactGlows.forEach(g => {
+                        g.scale.set(CONTACT_SCALE, CONTACT_SCALE, CONTACT_SCALE);
+                        g.material.opacity = 0.3;
+                    });
+
+                    octaEdgeMat.opacity = 0.18;
+                    octaEdgeMat.color.setHex(0x5577aa);
+                    cube2MainMat.opacity = 0.9;
+                    cube2MainMat.color.setHex(0xaaddff);
+                    cube2OuterMat.opacity = 0.35;
+                    cube2DiagMat.opacity = 0.5;
+                    box1x1x2.material.opacity = 0.15;
+                    z0PlaneMat.opacity = 0.13;
+                }
+            }
+
+            if((generation === 3 || generation === 5) && gen3Group.visible) {
+                if(generation === 3) {
+                    timer += dt;
+
+                    if(phase === 1) {
+                        const t = Math.min(timer / 2.5, 1);
+
+                        gen2NucleusMeshes.forEach((mesh, i) => {
+                            const pulse = 1 + Math.sin(timer * 6 + i) * 0.1 * t;
+                            mesh.scale.set(CONTACT_SCALE * pulse, CONTACT_SCALE * pulse, CONTACT_SCALE * pulse);
+                            gen2NucleusGlows[i].material.opacity = 0.45 + t * 0.2;
+                        });
+                        gen2ContactGlows.forEach((g, i) => {
+                            const pulse = 1 + Math.sin(timer * 5 + i) * 0.08 * t;
+                            g.scale.set(CONTACT_SCALE * pulse, CONTACT_SCALE * pulse, CONTACT_SCALE * pulse);
+                            g.material.opacity = 0.3 + t * 0.2;
+                        });
+
+                        cube3MainMat.opacity = t * 0.5;
+                        cube3OuterMat.opacity = t * 0.15;
+                        grid3Mat.opacity = t * 0.15;
+
+                        octaEdgeMat.opacity = 0.6 * (1 - t * 0.5);
+                        cube2MainMat.opacity = 0.4 * (1 - t * 0.5);
+                        cube2OuterMat.opacity = 0.12 * (1 - t * 0.5);
+                        z0PlaneMat.opacity = 0.13 * (1 - t * 0.5);
+
+                        if(timer > 2.5) {
+                            phase = 2;
+                            timer = 0;
+                            phaseStatus3.textContent = '面中心核展開中';
+                            phaseStatus3.className = 'status-badge bg-orange-900/60 text-orange-300';
+                        }
+                    }
+                    else if(phase === 2) {
+                        const t = Math.min(timer / 3, 1);
+                        const ease = 1 - Math.pow(1 - t, 3);
+
+                        gen2NucleusMeshes.forEach((mesh, i) => {
+                            const startPos = octaVertices[gen2NucleusData[i].idx];
+                            const targetPos = new THREE.Vector3(...gen3NucleusData[i].pos);
+                            mesh.position.set(
+                                startPos.x + (targetPos.x - startPos.x) * ease,
+                                startPos.y + (targetPos.y - startPos.y) * ease,
+                                startPos.z + (targetPos.z - startPos.z) * ease
+                            );
+                            const startScale = CONTACT_SCALE;
+                            const targetScale = 1;
+                            const currentScale = startScale + (targetScale - startScale) * ease;
+                            mesh.scale.set(currentScale, currentScale, currentScale);
+                            gen2NucleusGlows[i].material.opacity = 0.65 * (1 - t * 0.3);
+                        });
+                        gen2ContactGlows.forEach(g => {
+                            g.material.opacity = 0.5 * (1 - t);
+                        });
+
+                        for(let i = 0; i < 6; i++) {
+                            const s = Math.min(1, t * 1.5);
+                            gen3NucleusMeshes[i].scale.set(s, s, s);
+                            gen3NucleusGlows[i].material.opacity = t * 0.4;
+                        }
+
+                        if(timer > 3) {
+                            phase = 3;
+                            timer = 0;
+                            phaseStatus3.textContent = '辺中点核生成中';
+                            phaseStatus3.className = 'status-badge bg-purple-900/60 text-purple-300';
+                        }
+                    }
+                    else if(phase === 3) {
+                        const t = Math.min(timer / 4, 1);
+
+                        for(let i = 6; i < 18; i++) {
+                            const nd = gen3NucleusData[i];
+                            let parentIdx = 0;
+                            let minDist = Infinity;
+                            for(let j = 0; j < 6; j++) {
+                                const pd = gen3NucleusData[j];
+                                const dist = Math.sqrt(
+                                    Math.pow(nd.pos[0]-pd.pos[0], 2) +
+                                    Math.pow(nd.pos[1]-pd.pos[1], 2) +
+                                    Math.pow(nd.pos[2]-pd.pos[2], 2)
+                                );
+                                if(dist < minDist) { minDist = dist; parentIdx = j; }
+                            }
+
+                            const delay = (i - 6) * 0.25;
+                            const localT = Math.max(0, Math.min(1, (timer - delay) / 1.5));
+
+                            if(localT > 0) {
+                                const s = localT < 0.15 ? localT / 0.15 : 1;
+                                gen3NucleusMeshes[i].scale.set(s, s, s);
+
+                                const parentPos = new THREE.Vector3(...gen3NucleusData[parentIdx].pos);
+                                const targetPos = new THREE.Vector3(...nd.pos);
+                                const moveEase = 1 - Math.pow(1 - localT, 3);
+                                gen3NucleusMeshes[i].position.set(
+                                    parentPos.x + (targetPos.x - parentPos.x) * moveEase,
+                                    parentPos.y + (targetPos.y - parentPos.y) * moveEase,
+                                    parentPos.z + (targetPos.z - parentPos.z) * moveEase
+                                );
+
+                                gen3NucleusGlows[i].material.opacity = localT * 0.4;
+                            }
+                        }
+
+                        gen3EnergyLines.forEach((line, idx) => {
+                            line.material.opacity = Math.min(0.35, timer / 3 * 0.35);
+                        });
+
+                        if(timer > 4) {
+                            phase = 4;
+                            timer = 0;
+                            phaseStatus3.textContent = '格子収束・空席表示';
+                            phaseStatus3.className = 'status-badge bg-blue-900/60 text-blue-300';
+                        }
+                    }
+                    else if(phase === 4) {
+                        const t = Math.min(timer / 2, 1);
+
+                        gen3NucleusMeshes.forEach((mesh, i) => {
+                            mesh.position.set(...gen3NucleusData[i].pos);
+                            mesh.scale.set(1, 1, 1);
+                            gen3NucleusGlows[i].material.opacity = 0.4;
+                        });
+
+                        emptyMeshes3.forEach((em, i) => {
+                            em.material.opacity = t * 0.35;
+                        });
+
+                        gen2NucleusMeshes.forEach(mesh => {
+                            mesh.scale.multiplyScalar(1 - t * 0.5);
+                        });
+                        gen2ContactGlows.forEach(g => {
+                            g.material.opacity *= (1 - t);
+                        });
+                        octaEdgeMat.opacity = 0.3 * (1 - t);
+                        cube2MainMat.opacity = 0.2 * (1 - t);
+                        cube2OuterMat.opacity = 0.06 * (1 - t);
+                        box1x1x2.material.opacity = 0.1 * (1 - t);
+                        z0PlaneMat.opacity = 0.13 * (1 - t);
+
+                        cube3MainMat.opacity = 0.5 + t * 0.4;
+                        cube3MainMat.color.setHex(0x88ccff + Math.floor(t * 0x22) * 0x010101);
+                        cube3OuterMat.opacity = (0.5 + t * 0.4) * 0.4;
+                        grid3Mat.opacity = 0.15 + t * 0.25;
+
+                        if(timer > 2) {
+                            phase = 5;
+                            timer = 0;
+                            phaseStatus3.textContent = '生成終了';
+                            phaseStatus3.className = 'status-badge bg-green-900/60 text-green-300';
+                        }
+                    }
+                    else if(phase === 5) {
+                        gen3NucleusMeshes.forEach((mesh, i) => {
+                            mesh.position.set(...gen3NucleusData[i].pos);
+                            mesh.scale.set(1, 1, 1);
+                        });
+
+                        gen2Group.visible = false;
+
+                        cube3MainMat.opacity = 0.9;
+                        cube3MainMat.color.setHex(0xaaddff);
+                        cube3OuterMat.opacity = 0.35;
+                        grid3Mat.opacity = 0.4;
+
+                        gen3EnergyLines.forEach(line => {
+                            line.material.opacity = 0.35;
+                        });
+                        emptyMeshes3.forEach(em => {
+                            em.material.opacity = 0.35;
+                        });
+                    }
+                }
+            }
+
+            if(generation === 5 && gen5Group.visible) {
+                timer += dt;
+
+                if(phase === 1) {
+                    const t = Math.min(timer / 2.5, 1);
+
+                    gen3NucleusMeshes.forEach((mesh, i) => {
+                        const pulse = 1 + Math.sin(timer * 6 + i) * 0.1 * t;
+                        mesh.scale.set(pulse, pulse, pulse);
+                        gen3NucleusGlows[i].material.opacity = 0.4 + t * 0.2;
+                    });
+
+                    cube5MainMat.opacity = t * 0.5;
+                    cube5OuterMat.opacity = t * 0.15;
+                    grid5Mat.opacity = t * 0.15;
+
+                    cube3MainMat.opacity = 0.9 * (1 - t * 0.5);
+                    cube3OuterMat.opacity = 0.35 * (1 - t * 0.5);
+                    grid3Mat.opacity = 0.4 * (1 - t * 0.5);
+
+                    if(timer > 2.5) {
+                        phase = 2;
+                        timer = 0;
+                        phaseStatus5.textContent = 'タイプC核展開中';
+                        phaseStatus5.className = 'status-badge bg-blue-900/60 text-blue-300';
+                    }
+                }
+                else if(phase === 2) {
+                    const t = Math.min(timer / 3, 1);
+                    const ease = 1 - Math.pow(1 - t, 3);
+
+                    const typeCIndices = gen5NucleusData
+                        .map((nd, i) => ({ ...nd, realIdx: i }))
+                        .filter(nd => nd.type === 'C');
+
+                    typeCIndices.forEach((nd, idx) => {
+                        const parentIdx = idx % 6;
+                        const parentPos = new THREE.Vector3(...gen3NucleusData[parentIdx].pos);
+                        const targetPos = new THREE.Vector3(...nd.pos);
+
+                        const delay = idx * 0.3;
+                        const localT = Math.max(0, Math.min(1, (timer - delay) / 2));
+
+                        if(localT > 0) {
+                            const s = localT < 0.12 ? localT / 0.12 : 1;
+                            gen5NucleusMeshes[nd.realIdx].scale.set(s, s, s);
+                            const moveEase = 1 - Math.pow(1 - localT, 3);
+                            gen5NucleusMeshes[nd.realIdx].position.set(
+                                parentPos.x + (targetPos.x - parentPos.x) * moveEase,
+                                parentPos.y + (targetPos.y - parentPos.y) * moveEase,
+                                parentPos.z + (targetPos.z - parentPos.z) * moveEase
+                            );
+                            gen5NucleusGlows[nd.realIdx].material.opacity = localT * 0.4;
+                        }
+                    });
+
+                    if(timer > 3) {
+                        phase = 3;
+                        timer = 0;
+                        phaseStatus5.textContent = 'タイプA核生成中';
+                        phaseStatus5.className = 'status-badge bg-purple-900/60 text-purple-300';
+                    }
+                }
+                else if(phase === 3) {
+                    const t = Math.min(timer / 4, 1);
+
+                    const typeAIndices = gen5NucleusData
+                        .map((nd, i) => ({ ...nd, realIdx: i }))
+                        .filter(nd => nd.type === 'A');
+
+                    typeAIndices.forEach((nd, idx) => {
+                        const delay = idx * 0.12;
+                        const localT = Math.max(0, Math.min(1, (timer - delay) / 1.5));
+
+                        if(localT > 0) {
+                            const s = localT < 0.15 ? localT / 0.15 : 1;
+                            gen5NucleusMeshes[nd.realIdx].scale.set(s, s, s);
+                            gen5NucleusMeshes[nd.realIdx].position.set(...nd.pos);
+                            gen5NucleusGlows[nd.realIdx].material.opacity = localT * 0.4;
+                        }
+                    });
+
+                    if(timer > 4) {
+                        phase = 4;
+                        timer = 0;
+                        phaseStatus5.textContent = 'タイプB核生成中';
+                        phaseStatus5.className = 'status-badge bg-pink-900/60 text-pink-300';
+                    }
+                }
+                else if(phase === 4) {
+                    const t = Math.min(timer / 4, 1);
+
+                    const typeBIndices = gen5NucleusData
+                        .map((nd, i) => ({ ...nd, realIdx: i }))
+                        .filter(nd => nd.type === 'B');
+
+                    typeBIndices.forEach((nd, idx) => {
+                        const delay = idx * 0.12;
+                        const localT = Math.max(0, Math.min(1, (timer - delay) / 1.5));
+
+                        if(localT > 0) {
+                            const s = localT < 0.15 ? localT / 0.15 : 1;
+                            gen5NucleusMeshes[nd.realIdx].scale.set(s, s, s);
+                            gen5NucleusMeshes[nd.realIdx].position.set(...nd.pos);
+                            gen5NucleusGlows[nd.realIdx].material.opacity = localT * 0.4;
+                        }
+                    });
+
+                    gen5EnergyLines.forEach((line, idx) => {
+                        line.material.opacity = Math.min(0.3, timer / 3 * 0.3);
+                    });
+
+                    if(timer > 4) {
+                        phase = 5;
+                        timer = 0;
+                        phaseStatus5.textContent = '格子収束・空席表示';
+                        phaseStatus5.className = 'status-badge bg-blue-900/60 text-blue-300';
+                    }
+                }
+                else if(phase === 5) {
+                    const t = Math.min(timer / 2, 1);
+
+                    gen5NucleusMeshes.forEach((mesh, i) => {
+                        mesh.position.set(...gen5NucleusData[i].pos);
+                        mesh.scale.set(1, 1, 1);
+                        gen5NucleusGlows[i].material.opacity = 0.4;
+                    });
+
+                    emptyMeshes5.forEach((em, i) => {
+                        em.material.opacity = t * 0.4;
+                    });
+
+                    gen3NucleusMeshes.forEach(mesh => {
+                        mesh.scale.multiplyScalar(1 - t * 0.5);
+                    });
+                    cube3MainMat.opacity = 0.9 * (1 - t);
+                    cube3OuterMat.opacity = 0.35 * (1 - t);
+                    grid3Mat.opacity = 0.4 * (1 - t);
+                    emptyMeshes3.forEach(em => {
+                        em.material.opacity = 0.35 * (1 - t);
+                    });
+
+                    cube5MainMat.opacity = 0.5 + t * 0.4;
+                    cube5MainMat.color.setHex(0x88ccff);
+                    cube5OuterMat.opacity = (0.5 + t * 0.4) * 0.4;
+                    grid5Mat.opacity = 0.15 + t * 0.3;
+
+                    if(timer > 2) {
+                        phase = 6;
+                        timer = 0;
+                        phaseStatus5.textContent = '生成終了';
+                        phaseStatus5.className = 'status-badge bg-green-900/60 text-green-300';
+                    }
+                }
+                else if(phase === 6) {
+                    gen5NucleusMeshes.forEach((mesh, i) => {
+                        mesh.position.set(...gen5NucleusData[i].pos);
+                        mesh.scale.set(1, 1, 1);
+                    });
+
+                    gen3Group.visible = false;
+
+                    cube5MainMat.opacity = 0.9;
+                    cube5MainMat.color.setHex(0xaaddff);
+                    cube5OuterMat.opacity = 0.35;
+                    grid5Mat.opacity = 0.45;
+
+                    gen5EnergyLines.forEach(line => {
+                        line.material.opacity = 0.3;
+                    });
+                    emptyMeshes5.forEach(em => {
+                        em.material.opacity = 0.4;
+                    });
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
