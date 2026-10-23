@@ -1,4 +1,4 @@
-> **最新: 完全版v2公開** → [TRI-TETRA THEORY COMPLETE v2 - ΣV=0・JIK=-1・137・1836](https://kiki054-n.github.io/ttt-complete-v2/)
+> **最新: 完全版v2公開** →[TRI-TETRA THEORY COMPLETE v2 - ΣV=0・JIK=-1・137・1836](https://kiki054-n.github.io/TTT/%E3%83%88%E3%83%AA%E3%83%86%E3%83%88%E3%83%A9%E7%90%86%E8%AB%96-%E5%AE%8C%E5%85%A8%E7%89%88-v2%E3%82%92%E8%A6%8B%E3%82%8B.html)
 
 
 # tensor-value-creation
